@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Arbitrage Engine - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <link rel="stylesheet" href="static/css/dashboard.css">
+</head>
+<body>
+    <!-- ═══ HEADER ═══ -->
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1><span class="logo-icon">⚡</span> Quantum Arbitrage Engine</h1>
+                    <span class="version-badge">v2.0.0</span>
+                </div>
+                <div class="header-center">
+                    <div class="status-indicator">
+                        <div class="status-dot" id="statusDot"></div>
+                        <span id="statusText">Connecting...</span>
+                    </div>
+                    <div class="mode-indicator">
+                        <span class="mode-label">Mode:</span>
+                        <span class="mode-value" id="currentMode">MONITOR</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button class="btn btn-primary" onclick="refreshData()">↻ Refresh</button>
+                    <button class="btn btn-secondary" onclick="openAdminPanel()">⚙ Admin</button>
+                    <button class="btn btn-accent" onclick="openPortfolio()">📊 Portfolio</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- ═══ ALERTS ═══ -->
+        <div id="alertContainer"></div>
+
+        <!-- ═══ KEY METRICS CARDS ═══ -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">💰</span>
+                    <span class="metric-title">Daily P&L</span>
+                </div>
+                <div class="metric-value" id="dailyPnl">$0.00</div>
+                <div class="metric-sub" id="dailyPnlPct">0.00%</div>
+                <div class="metric-bar"><div class="metric-bar-fill pnl-bar" id="pnlBar"></div></div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">📈</span>
+                    <span class="metric-title">Open Exposure</span>
+                </div>
+                <div class="metric-value" id="openExposure">$0.00</div>
+                <div class="metric-sub" id="exposurePct">0% of limit</div>
+                <div class="metric-bar"><div class="metric-bar-fill exposure-bar" id="exposureBar"></div></div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">🔄</span>
+                    <span class="metric-title">Active Trades</span>
+                </div>
+                <div class="metric-value" id="activeTrades">0</div>
+                <div class="metric-sub">Executing now</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">🛡️</span>
+                    <span class="metric-title">Risk Level</span>
+                </div>
+                <div class="metric-value risk-low" id="riskLevel">LOW</div>
+                <div class="metric-sub" id="killSwitchStatus">Kill Switch: OFF</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-title">Opportunities</span>
+                </div>
+                <div class="metric-value" id="opportunitiesCount">0</div>
+                <div class="metric-sub" id="bestSpread">Best: 0.00%</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">🏦</span>
+                    <span class="metric-title">Exchanges</span>
+                </div>
+                <div class="metric-value" id="exchangesConnected">0</div>
+                <div class="metric-sub" id="exchangesList">Loading...</div>
+            </div>
+        </div>
+
+        <!-- ═══ TABS ═══ -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchMainTab('prices')">📊 Prices</button>
+            <button class="tab-btn" onclick="switchMainTab('opportunities')">🎯 Opportunities</button>
+            <button class="tab-btn" onclick="switchMainTab('trades')">📋 Trades</button>
+            <button class="tab-btn" onclick="switchMainTab('charts')">📈 Charts</button>
+        </div>
+
+        <!-- ═══ PRICES TAB ═══ -->
+        <div class="tab-panel active" id="tab-prices">
+            <div class="table-card">
+                <div class="table-header">
+                    <span class="table-title">Real-Time Price Comparison</span>
+                    <span class="refresh-time" id="priceRefreshTime">—</span>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Best Bid</th>
+                                <th>Bid Exchange</th>
+                                <th>Best Ask</th>
+                                <th>Ask Exchange</th>
+                                <th>Spread %</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="priceTableBody">
+                            <tr><td colspan="7" class="loading-cell"><div class="spinner"></div> Loading market data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ OPPORTUNITIES TAB ═══ -->
+        <div class="tab-panel" id="tab-opportunities">
+            <div class="table-card">
+                <div class="table-header">
+                    <span class="table-title">Active Arbitrage Opportunities</span>
+                    <span class="refresh-time" id="oppRefreshTime">—</span>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Buy Exchange</th>
+                                <th>Buy Price</th>
+                                <th>Sell Exchange</th>
+                                <th>Sell Price</th>
+                                <th>Net Profit %</th>
+                                <th>Est. Profit $</th>
+                                <th>AI Score</th>
+                                <th>Recommendation</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="opportunitiesTableBody">
+                            <tr><td colspan="10" class="loading-cell"><div class="spinner"></div> Scanning for opportunities...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ TRADES TAB ═══ -->
+        <div class="tab-panel" id="tab-trades">
+            <div class="table-card">
+                <div class="table-header">
+                    <span class="table-title">Trade History</span>
+                    <span class="refresh-time" id="tradesRefreshTime">—</span>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Trade ID</th>
+                                <th>Symbol</th>
+                                <th>Buy Exchange</th>
+                                <th>Sell Exchange</th>
+                                <th>Buy Price</th>
+                                <th>Sell Price</th>
+                                <th>Profit</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tradesTableBody">
+                            <tr><td colspan="9" class="loading-cell"><div class="spinner"></div> Loading trades...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ CHARTS TAB ═══ -->
+        <div class="tab-panel" id="tab-charts">
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="chart-title">P&L Over Time</div>
+                    <canvas id="pnlChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Spread Distribution</div>
+                    <canvas id="spreadChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ FOOTER ═══ -->
+        <footer class="dashboard-footer">
+            <span>Quantum Arbitrage Engine v2.0.0</span>
+            <span>Author: HABIB-UR-REHMAN &lt;hassanbhatti2343@gmail.com&gt;</span>
+            <span id="lastUpdate">Last update: —</span>
+        </footer>
+    </div>
+
+    <!-- ═══ ADMIN MODAL ═══ -->
+    <div class="modal-overlay" id="adminOverlay" onclick="closeAdminPanel()"></div>
+    <div class="modal" id="adminModal">
+        <div class="modal-header">
+            <h2>⚙ Admin Control Panel</h2>
+            <button class="modal-close" onclick="closeAdminPanel()">✕</button>
+        </div>
+        <div class="modal-tabs">
+            <button class="modal-tab active" onclick="switchAdminTab('risk')">Risk Control</button>
+            <button class="modal-tab" onclick="switchAdminTab('execution')">Execution</button>
+            <button class="modal-tab" onclick="switchAdminTab('exchanges')">Exchanges</button>
+            <button class="modal-tab" onclick="switchAdminTab('system')">System</button>
+        </div>
+        <div class="modal-body">
+            <!-- Risk Tab -->
+            <div class="admin-tab active" id="admin-risk">
+                <div class="form-group">
+                    <label>Max Daily Loss (USD)</label>
+                    <input type="number" id="inputMaxDailyLoss" value="5000" step="100">
+                </div>
+                <div class="form-group">
+                    <label>Max Open Exposure (USD)</label>
+                    <input type="number" id="inputMaxExposure" value="100000" step="1000">
+                </div>
+                <div class="form-group">
+                    <label>Max Position Size (USD)</label>
+                    <input type="number" id="inputMaxPosition" value="10000" step="100">
+                </div>
+                <div class="form-group">
+                    <label>Min Profit Threshold (%)</label>
+                    <input type="number" id="inputMinProfit" value="0.3" step="0.05">
+                </div>
+                <button class="btn btn-primary btn-full" onclick="saveRiskLimits()">💾 Save Risk Limits</button>
+                <div class="emergency-section">
+                    <h3>Emergency Controls</h3>
+                    <button class="btn btn-danger btn-full" id="killSwitchBtn" onclick="toggleKillSwitch()">
+                        🛑 Activate Kill Switch
+                    </button>
+                    <button class="btn btn-warning btn-full" onclick="resetDailyLimits()">
+                        🔄 Reset Daily Limits
+                    </button>
+                </div>
+            </div>
+            <!-- Execution Tab -->
+            <div class="admin-tab" id="admin-execution">
+                <div class="form-group">
+                    <label>Trading Mode</label>
+                    <select id="selectTradingMode">
+                        <option value="monitor">Monitor Only (No Trading)</option>
+                        <option value="semi_auto">Semi-Auto (AI Filters, You Approve)</option>
+                        <option value="full_auto">Full-Auto (AI Decides All)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Default Trade Size (USD)</label>
+                    <input type="number" id="inputTradeSize" value="100" step="10">
+                </div>
+                <button class="btn btn-primary btn-full" onclick="saveTradingMode()">💾 Save Mode</button>
+                <div class="action-buttons">
+                    <button class="btn btn-success btn-full" onclick="enableTrading()">✅ Enable Trading</button>
+                    <button class="btn btn-danger btn-full" onclick="disableTrading()">⛔ Disable Trading</button>
+                </div>
+            </div>
+            <!-- Exchanges Tab -->
+            <div class="admin-tab" id="admin-exchanges">
+                <div id="exchangeStatusList" class="exchange-list">Loading exchanges...</div>
+            </div>
+            <!-- System Tab -->
+            <div class="admin-tab" id="admin-system">
+                <div class="system-info" id="systemInfoPanel">Loading system info...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ PORTFOLIO MODAL ═══ -->
+    <div class="modal-overlay" id="portfolioOverlay" onclick="closePortfolio()"></div>
+    <div class="modal" id="portfolioModal">
+        <div class="modal-header">
+            <h2>📊 Portfolio & P&L</h2>
+            <button class="modal-close" onclick="closePortfolio()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="portfolio-metrics" id="portfolioMetrics">Loading...</div>
+        </div>
+    </div>
+
+    <script src="static/js/dashboard.js"></script>
+</body>
+</html>
